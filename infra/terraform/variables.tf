@@ -65,3 +65,9 @@ variable "tags" {
   default     = {}
   nullable    = false
 }
+
+variable "hub_address_space" {
+  type        = string
+  description = "Parent address space used by the AVM module for hub-related allocation."
+  nullable    = false
+}

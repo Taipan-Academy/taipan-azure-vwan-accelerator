@@ -18,6 +18,12 @@ module "virtual_wan" {
     firewall_policy_name = var.firewall_policy_name
   }
 
+  virtual_wan_settings = {
+    enabled_resources = {
+      ddos_protection_plan = false
+    }
+  }
+
   virtual_hubs = {
     primary = {
       enabled_resources = {
@@ -32,7 +38,7 @@ module "virtual_wan" {
       }
 
       is_primary                = true
-      default_hub_address_space = var.virtual_hub_address_prefix
+      default_hub_address_space = var.hub_address_space
       default_parent_id         = azurerm_resource_group.connectivity.id
       location                  = var.location
 
