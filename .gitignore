@@ -1,0 +1,20 @@
+# Terraform state, plans, and local provider files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Credentials, certificates, and local settings
+.env
+.env.*
+!.env.example
+.azure/
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Editor and operating-system files
