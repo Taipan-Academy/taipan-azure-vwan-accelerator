@@ -1,0 +1,17 @@
+# Copy this file to terraform.tfvars and replace all example values.
+
+location                        = "westeurope"
+resource_group_name             = "rg-taipan-vwan-weu-example"
+virtual_wan_name                = "vwan-taipan-weu-example"
+virtual_hub_name                = "vhub-taipan-weu-example"
+virtual_hub_address_prefix      = "10.250.0.0/24"
+azure_firewall_name             = "afw-taipan-weu-example"
+firewall_policy_name            = "afwp-taipan-weu-example"
+azure_firewall_sku_tier         = "Standard"
+enable_telemetry                = false
+
+tags = {
+  environment = "poc"
+  managed_by  = "taipan-accelerator"
+  purpose     = "vwan-learning"
+}
