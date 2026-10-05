@@ -197,9 +197,10 @@ resource "azurerm_firewall_policy_rule_collection_group" "acceptance_test" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "firewall" {
-  name                       = "diag-${var.core_azure_firewall_name}"
-  target_resource_id         = data.azurerm_firewall.core.id
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.test.id
+  name                           = "diag-${var.core_azure_firewall_name}"
+  target_resource_id             = data.azurerm_firewall.core.id
+  log_analytics_workspace_id     = azurerm_log_analytics_workspace.test.id
+  log_analytics_destination_type = "Dedicated"
 
   enabled_log {
     category_group = "allLogs"

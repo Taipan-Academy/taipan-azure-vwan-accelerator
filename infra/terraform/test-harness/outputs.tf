@@ -22,3 +22,8 @@ output "virtual_hub_connection_ids" {
   description = "Virtual hub connection IDs created for the two test spokes."
   value       = { for key, connection in azurerm_virtual_hub_connection.spoke : key => connection.id }
 }
+
+output "log_analytics_workspace_guid" {
+  description = "Workspace GUID used by Azure CLI log queries."
+  value       = azurerm_log_analytics_workspace.test.workspace_id
+}

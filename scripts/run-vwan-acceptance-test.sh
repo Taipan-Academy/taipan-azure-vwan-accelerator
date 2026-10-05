@@ -34,7 +34,24 @@ query_template="$repository_root/tests/integration/kql/firewall-acceptance.kql"
 application_query_template="$repository_root/tests/integration/kql/firewall-internet-egress.kql"
 
 mkdir -p "$evidence_directory"
+chmod 700 "$evidence_directory"
+test_start_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+for template in "$query_template" "$application_query_template"; do
+  [[ -s "$template" ]] || {
+    echo "Missing or empty KQL template: $template" >&2
+    exit 1
+  }
+done
+
+[[ -f "$script_directory/check-firewall-telemetry.py" ]] || {
+  echo "Telemetry validator is missing." >&2
+  exit 1
+}
+
+# TAIPAN_PROGRESS_V1
+echo "[TEST] Discovering probe IP addresses..."
+printf "[EVIDENCE] %s\n" "$evidence_directory"
 probe_a_ip="$(az vm show --resource-group "$test_resource_group" --name "$probe_a_vm_name" --show-details --query privateIps --output tsv | awk '{print $1}')"
 probe_b_ip="$(az vm show --resource-group "$test_resource_group" --name "$probe_b_vm_name" --show-details --query privateIps --output tsv | awk '{print $1}')"
 
@@ -67,10 +84,12 @@ run_on_probe_a() {
     --output json
 }
 
+printf "[TEST 1/4] TCP 8080: %s -> %s; expecting Allow...\n" "$probe_a_ip" "$probe_b_ip"
 allowed_command="python3 -c \"import urllib.request; body=urllib.request.urlopen('http://${probe_b_ip}:8080', timeout=15).read().decode(); assert body.strip() == 'taipan-vwan-acceptance-test'; print(body.strip())\""
 allowed=false
 
 for attempt in $(seq 1 12); do
+  echo "[TEST 1/4] Connection attempt $attempt/12"
   allowed_result="$evidence_directory/allowed-flow-attempt-${attempt}.json"
   if run_on_probe_a "$allowed_command" >"$allowed_result" 2>&1 && grep -q 'taipan-vwan-acceptance-test' "$allowed_result"; then
     allowed=true
@@ -84,6 +103,8 @@ if [[ "$allowed" != true ]]; then
   exit 1
 fi
 
+echo "[PASS 1/4] TCP 8080 succeeded."
+echo "[TEST 2/4] TCP 8081; expecting blocked connectivity..."
 denied_command="if timeout 15 bash -c '</dev/tcp/${probe_b_ip}/8081'; then echo UNEXPECTED_CONNECTIVITY; exit 1; else echo EXPECTED_DENY; fi"
 denied_result="$evidence_directory/denied-flow.json"
 run_on_probe_a "$denied_command" >"$denied_result" 2>&1
@@ -93,6 +114,8 @@ if ! grep -q 'EXPECTED_DENY' "$denied_result"; then
   exit 1
 fi
 
+echo "[PASS 2/4] TCP 8081 returned expected blocked connectivity."
+echo "[TEST 3/4] HTTPS www.example.com:443; expecting Allow..."
 internet_allowed_command="HTTPS_PROXY= HTTP_PROXY= ALL_PROXY= https_proxy= http_proxy= all_proxy= python3 -c \"import urllib.request; response=urllib.request.urlopen('https://www.example.com', timeout=20); assert response.status == 200; print('EXPECTED_INTERNET_ALLOW', response.status)\""
 internet_allowed_result="$evidence_directory/internet-allowed.json"
 run_on_probe_a "$internet_allowed_command" >"$internet_allowed_result" 2>&1
@@ -102,6 +125,8 @@ if ! grep -q 'EXPECTED_INTERNET_ALLOW' "$internet_allowed_result"; then
   exit 1
 fi
 
+echo "[PASS 3/4] Approved HTTPS request succeeded."
+echo "[TEST 4/4] HTTPS www.microsoft.com:443; expecting blocked connectivity..."
 internet_denied_command="if HTTPS_PROXY= HTTP_PROXY= ALL_PROXY= https_proxy= http_proxy= all_proxy= python3 -c \"import urllib.request; urllib.request.urlopen('https://www.microsoft.com', timeout=20)\"; then echo UNEXPECTED_INTERNET_CONNECTIVITY; exit 1; else echo EXPECTED_INTERNET_DENY; fi"
 internet_denied_result="$evidence_directory/internet-denied.json"
 run_on_probe_a "$internet_denied_command" >"$internet_denied_result" 2>&1
@@ -111,6 +136,9 @@ if ! grep -q 'EXPECTED_INTERNET_DENY' "$internet_denied_result"; then
   exit 1
 fi
 
+echo "[PASS 4/4] Blocked HTTPS request returned expected failure."
+echo "[TELEMETRY] Confirming exact firewall Allow/Deny decisions for this test run."
+echo "[TELEMETRY] Log ingestion may take several minutes; retries are automatic."
 if [[ ! -f "$query_template" ]]; then
   echo "KQL template is missing: $query_template" >&2
   exit 1
@@ -121,19 +149,38 @@ query="$(sed \
   -e "s/__PROBE_B_IP__/${probe_b_ip}/g" \
   "$query_template")"
 
+query="${query/TimeGenerated > ago(60m)/TimeGenerated >= datetime($test_start_utc)}"
 printf '%s\n' "$query" >"$evidence_directory/firewall-acceptance.kql"
 firewall_logs_found=false
 
 for attempt in $(seq 1 20); do
   firewall_log_result="$evidence_directory/firewall-log-query-attempt-${attempt}.json"
-  az monitor log-analytics query \
+  if ! az monitor log-analytics query \
     --workspace "$workspace_id" \
     --analytics-query "$query" \
-    --output json >"$firewall_log_result"
+    --output json >"$firewall_log_result" 2>"$firewall_log_result.stderr"; then
+    cat "$firewall_log_result.stderr" >&2
+    # New resource-specific tables may not exist until ingestion.
+    if grep -Eiq "Failed to resolve table|does not refer to any known table" "$firewall_log_result.stderr"; then
+      echo "[TELEMETRY] Waiting for log-table ingestion..."
+      sleep 30
+      continue
+    fi
+    echo "Log query failed; review the saved stderr file." >&2
+    exit 1
+  fi
 
-  if grep -q 'Allow' "$firewall_log_result" && grep -q 'Deny' "$firewall_log_result"; then
+  echo "[TELEMETRY] Network attempt $attempt/20"
+  if python3 "$script_directory/check-firewall-telemetry.py" \
+    "$firewall_log_result" network "$probe_a_ip" "$probe_b_ip"; then
     firewall_logs_found=true
     break
+  else
+    validator_status=$?
+    if [[ "$validator_status" != 1 ]]; then
+      echo "Invalid telemetry output; stopping instead of retrying." >&2
+      exit "$validator_status"
+    fi
   fi
   sleep 30
 done
@@ -144,19 +191,38 @@ if [[ "$firewall_logs_found" != true ]]; then
 fi
 
 application_query="$(sed -e "s/__PROBE_A_IP__/${probe_a_ip}/g" "$application_query_template")"
+application_query="${application_query/TimeGenerated > ago(60m)/TimeGenerated >= datetime($test_start_utc)}"
 printf '%s\n' "$application_query" >"$evidence_directory/firewall-internet-egress.kql"
 application_logs_found=false
 
 for attempt in $(seq 1 20); do
   application_log_result="$evidence_directory/firewall-application-log-query-attempt-${attempt}.json"
-  az monitor log-analytics query \
+  if ! az monitor log-analytics query \
     --workspace "$workspace_id" \
     --analytics-query "$application_query" \
-    --output json >"$application_log_result"
+    --output json >"$application_log_result" 2>"$application_log_result.stderr"; then
+    cat "$application_log_result.stderr" >&2
+    # New resource-specific tables may not exist until ingestion.
+    if grep -Eiq "Failed to resolve table|does not refer to any known table" "$application_log_result.stderr"; then
+      echo "[TELEMETRY] Waiting for log-table ingestion..."
+      sleep 30
+      continue
+    fi
+    echo "Log query failed; review the saved stderr file." >&2
+    exit 1
+  fi
 
-  if grep -q 'Allow' "$application_log_result" && grep -q 'Deny' "$application_log_result"; then
+  echo "[TELEMETRY] Application attempt $attempt/20"
+  if python3 "$script_directory/check-firewall-telemetry.py" \
+    "$application_log_result" application "$probe_a_ip" "$probe_b_ip"; then
     application_logs_found=true
     break
+  else
+    validator_status=$?
+    if [[ "$validator_status" != 1 ]]; then
+      echo "Invalid telemetry output; stopping instead of retrying." >&2
+      exit "$validator_status"
+    fi
   fi
   sleep 30
 done
