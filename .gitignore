@@ -18,3 +18,5 @@
 *.p12
 
 # Editor and operating-system files
+
+bootstrap/state/bicep/*.local.bicepparam
