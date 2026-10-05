@@ -1,0 +1,21 @@
+# Customer POC profile: copy to a local .tfvars file and replace every value.
+# Do not commit the copied file.
+
+location                   = "westeurope"
+resource_group_name        = "rg-contoso-vwan-weu-poc"
+virtual_wan_name           = "vwan-contoso-weu-poc"
+virtual_hub_name           = "vhub-contoso-weu-poc"
+hub_address_space          = "10.250.0.0/16"
+virtual_hub_address_prefix = "10.250.0.0/24"
+azure_firewall_name        = "afw-contoso-weu-poc"
+firewall_policy_name       = "afwp-contoso-weu-poc"
+azure_firewall_sku_tier    = "Standard"
+enable_telemetry           = false
+
+tags = {
+  environment = "poc"
+  owner       = "replace-with-service-owner"
+  cost_center = "replace-with-cost-centre"
+  managed_by  = "taipan-azure-vwan-accelerator"
+  purpose     = "vwan-acceptance-poc"
+}

@@ -1,0 +1,21 @@
+# Customer production profile: copy to a local .tfvars file and replace every value.
+# Review the deployment plan through the approved CI/CD workflow before apply.
+
+location                   = "westeurope"
+resource_group_name        = "rg-contoso-vwan-weu-prod"
+virtual_wan_name           = "vwan-contoso-weu-prod"
+virtual_hub_name           = "vhub-contoso-weu-prod"
+hub_address_space          = "10.250.0.0/16"
+virtual_hub_address_prefix = "10.250.0.0/24"
+azure_firewall_name        = "afw-contoso-weu-prod"
+firewall_policy_name       = "afwp-contoso-weu-prod"
+azure_firewall_sku_tier    = "Premium"
+enable_telemetry           = false
+
+tags = {
+  environment = "production"
+  owner       = "replace-with-service-owner"
+  cost_center = "replace-with-cost-centre"
+  managed_by  = "taipan-azure-vwan-accelerator"
+  purpose     = "enterprise-connectivity"
+}
