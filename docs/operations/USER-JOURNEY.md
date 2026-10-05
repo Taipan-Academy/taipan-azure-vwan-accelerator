@@ -2,12 +2,13 @@
 
 ```mermaid
 flowchart LR
-    A["Select profile"] --> B["Plan-only preflight"]
-    B --> C["Approval gate"]
-    C --> D["Deploy secured core"]
-    D --> E["Deploy temporary tests"]
-    E --> F["Evidence report"]
-    F --> G["POC: destroy all\nProduction: retain core"]
+    A["Prepare
+State and profile"] --> B["Plan
+Review and approval"]
+    B --> C["Deploy and test
+Core then harness"]
+    C --> D["Evidence
+POC cleanup or retain core"]
 ```
 
 ## POC

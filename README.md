@@ -29,10 +29,13 @@ No workload, vWAN, Firewall, test VM, or customer data resource is currently dep
 
 ```mermaid
 flowchart LR
-    A["Choose POC or production"] --> B["Fill approved profile"]
-    B --> C["Preflight plan"]
-    C --> D["Approve cost and change"]
-    D --> E["Deploy, prove, retain or clean up"]
+    A["Prepare
+State and profile"] --> B["Plan
+Review and approval"]
+    B --> C["Deploy and test
+Core then harness"]
+    C --> D["Evidence
+Clean up or retain"]
 ```
 
 Customers make architecture decisions through profiles and approvals; they do not modify Terraform module code.
