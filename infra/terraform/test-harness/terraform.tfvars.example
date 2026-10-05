@@ -1,0 +1,30 @@
+location                    = "westeurope"
+test_resource_group_name    = "rg-taipan-vwan-weu-test"
+log_analytics_workspace_name = "log-taipan-vwan-weu-test"
+
+core_resource_group_name  = "rg-taipan-vwan-weu-example"
+core_virtual_hub_name     = "vhub-taipan-weu-example"
+core_azure_firewall_name  = "afw-taipan-weu-example"
+core_firewall_policy_name = "afwp-taipan-weu-example"
+
+spoke_a_name          = "vnet-taipan-spoke-a-weu-test"
+spoke_a_address_space = "10.10.0.0/16"
+spoke_a_subnet_prefix = "10.10.1.0/24"
+
+spoke_b_name          = "vnet-taipan-spoke-b-weu-test"
+spoke_b_address_space = "10.20.0.0/16"
+spoke_b_subnet_prefix = "10.20.1.0/24"
+
+probe_a_vm_name = "vm-taipan-probe-a"
+probe_b_vm_name = "vm-taipan-probe-b"
+probe_vm_size   = "Standard_B1s"
+
+# Generate a dedicated temporary key before apply. Do not reuse a personal or GitHub SSH key.
+probe_vm_admin_ssh_public_key = "REPLACE_WITH_A_DEDICATED_TEST_PUBLIC_KEY"
+
+log_retention_days = 30
+
+tags = {
+  environment = "poc"
+  purpose     = "vwan-acceptance-test"
+}
