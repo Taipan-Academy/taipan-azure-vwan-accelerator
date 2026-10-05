@@ -100,7 +100,7 @@ resource "azurerm_virtual_hub_connection" "spoke" {
   virtual_hub_id            = data.azurerm_virtual_hub.core.id
   remote_virtual_network_id = azurerm_virtual_network.spoke[each.key].id
 
-  internet_security_enabled = false
+  internet_security_enabled = true
 }
 
 resource "azurerm_network_interface" "probe" {
@@ -173,6 +173,25 @@ resource "azurerm_firewall_policy_rule_collection_group" "acceptance_test" {
       source_addresses      = [var.spoke_a_address_space]
       destination_addresses = [var.spoke_b_address_space]
       destination_ports     = ["8080"]
+    }
+  }
+
+  application_rule_collection {
+    action   = "Allow"
+    name     = "allow-approved-internet-https"
+    priority = 200
+
+    rule {
+      name             = "allow-example-com-https"
+      source_addresses = [var.spoke_a_address_space]
+      destination_fqdns = [
+        "www.example.com",
+      ]
+
+      protocols {
+        type = "Https"
+        port = 443
+      }
     }
   }
 }

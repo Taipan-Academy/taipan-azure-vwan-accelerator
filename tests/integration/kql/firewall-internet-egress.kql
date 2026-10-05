@@ -1,0 +1,7 @@
+AZFWApplicationRule
+| where TimeGenerated > ago(60m)
+| where SourceIp == "__PROBE_A_IP__"
+| where Fqdn in ("www.example.com", "www.microsoft.com")
+| where DestinationPort == 443
+| project TimeGenerated, SourceIp, Fqdn, DestinationPort, Protocol, Action, ActionReason, RuleCollectionGroup, RuleCollection, Rule
+| order by TimeGenerated asc

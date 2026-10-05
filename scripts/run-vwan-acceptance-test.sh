@@ -7,7 +7,7 @@ usage() {
 Usage:
   run-vwan-acceptance-test.sh <test-resource-group> <probe-a-vm> <probe-b-vm> <log-analytics-workspace-id> [evidence-directory]
 
-The script proves the permitted TCP 8080 flow and the intentional denied TCP 8081 flow. It uses Azure Run Command; probe VMs do not need public IP addresses or SSH access.
+The script proves permitted and denied private flows plus controlled Internet egress. It uses Azure Run Command; probe VMs do not need public IP addresses or SSH access.
 USAGE
 }
 
@@ -31,6 +31,7 @@ script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "$script_directory/.." && pwd)"
 evidence_directory="${5:-$repository_root/artifacts/acceptance-$(date -u +%Y%m%dT%H%M%SZ)}"
 query_template="$repository_root/tests/integration/kql/firewall-acceptance.kql"
+application_query_template="$repository_root/tests/integration/kql/firewall-internet-egress.kql"
 
 mkdir -p "$evidence_directory"
 
@@ -51,7 +52,9 @@ cat >"$evidence_directory/test-inputs.json" <<EOF
   "probe_b_vm": "$probe_b_vm_name",
   "probe_b_ip": "$probe_b_ip",
   "allowed_flow": "TCP 8080",
-  "denied_flow": "TCP 8081"
+  "denied_flow": "TCP 8081",
+  "internet_allowed": "HTTPS www.example.com:443",
+  "internet_denied": "HTTPS www.microsoft.com:443"
 }
 EOF
 
@@ -90,6 +93,24 @@ if ! grep -q 'EXPECTED_DENY' "$denied_result"; then
   exit 1
 fi
 
+internet_allowed_command="HTTPS_PROXY= HTTP_PROXY= ALL_PROXY= https_proxy= http_proxy= all_proxy= python3 -c \"import urllib.request; response=urllib.request.urlopen('https://www.example.com', timeout=20); assert response.status == 200; print('EXPECTED_INTERNET_ALLOW', response.status)\""
+internet_allowed_result="$evidence_directory/internet-allowed.json"
+run_on_probe_a "$internet_allowed_command" >"$internet_allowed_result" 2>&1
+
+if ! grep -q 'EXPECTED_INTERNET_ALLOW' "$internet_allowed_result"; then
+  echo "The approved Internet egress test did not return the expected result. Evidence: $evidence_directory" >&2
+  exit 1
+fi
+
+internet_denied_command="if HTTPS_PROXY= HTTP_PROXY= ALL_PROXY= https_proxy= http_proxy= all_proxy= python3 -c \"import urllib.request; urllib.request.urlopen('https://www.microsoft.com', timeout=20)\"; then echo UNEXPECTED_INTERNET_CONNECTIVITY; exit 1; else echo EXPECTED_INTERNET_DENY; fi"
+internet_denied_result="$evidence_directory/internet-denied.json"
+run_on_probe_a "$internet_denied_command" >"$internet_denied_result" 2>&1
+
+if ! grep -q 'EXPECTED_INTERNET_DENY' "$internet_denied_result"; then
+  echo "The blocked Internet egress test did not return the expected result. Evidence: $evidence_directory" >&2
+  exit 1
+fi
+
 if [[ ! -f "$query_template" ]]; then
   echo "KQL template is missing: $query_template" >&2
   exit 1
@@ -122,4 +143,47 @@ if [[ "$firewall_logs_found" != true ]]; then
   exit 1
 fi
 
-printf 'Acceptance test passed. Evidence: %s\n' "$evidence_directory"
+application_query="$(sed -e "s/__PROBE_A_IP__/${probe_a_ip}/g" "$application_query_template")"
+printf '%s\n' "$application_query" >"$evidence_directory/firewall-internet-egress.kql"
+application_logs_found=false
+
+for attempt in $(seq 1 20); do
+  application_log_result="$evidence_directory/firewall-application-log-query-attempt-${attempt}.json"
+  az monitor log-analytics query \
+    --workspace "$workspace_id" \
+    --analytics-query "$application_query" \
+    --output json >"$application_log_result"
+
+  if grep -q 'Allow' "$application_log_result" && grep -q 'Deny' "$application_log_result"; then
+    application_logs_found=true
+    break
+  fi
+  sleep 30
+done
+
+if [[ "$application_logs_found" != true ]]; then
+  echo "Internet tests completed, but matching allow and deny Firewall application logs were not available before the timeout. Evidence: $evidence_directory" >&2
+  exit 1
+fi
+
+cat >"$evidence_directory/REPORT.md" <<REPORT
+# Azure vWAN acceptance-test report
+
+**Status:** PASS
+**Generated (UTC):** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Private flow: Probe A to Probe B TCP 8080 | PASS | \`allowed-flow-attempt-*.json\` |
+| Private flow: Probe A to Probe B TCP 8081 | PASS (blocked) | \`denied-flow.json\` |
+| Internet egress: www.example.com HTTPS | PASS (allowed) | \`internet-allowed.json\` |
+| Internet egress: www.microsoft.com HTTPS | PASS (blocked) | \`internet-denied.json\` |
+| Azure Firewall network-rule telemetry | PASS | \`firewall-log-query-attempt-*.json\` |
+| Azure Firewall application-rule telemetry | PASS | \`firewall-application-log-query-attempt-*.json\` |
+
+**Test resource group:** \`${test_resource_group}\`
+**Probe A:** \`${probe_a_vm_name}\` (\`${probe_a_ip}\`)
+**Probe B:** \`${probe_b_vm_name}\` (\`${probe_b_ip}\`)
+REPORT
+
+printf 'Acceptance test passed. Report: %s/REPORT.md\n' "$evidence_directory"
