@@ -1,0 +1,7 @@
+AZFWNetworkRule
+| where TimeGenerated > ago(60m)
+| where SourceIp == "__PROBE_A_IP__"
+| where DestinationIp == "__PROBE_B_IP__"
+| where DestinationPort in ("8080", "8081")
+| project TimeGenerated, SourceIp, DestinationIp, DestinationPort, Protocol, Action, ActionReason, RuleCollectionGroup, RuleCollection, Rule
+| order by TimeGenerated asc
