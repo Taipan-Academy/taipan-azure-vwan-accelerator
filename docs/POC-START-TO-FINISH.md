@@ -6,6 +6,23 @@ Start with a new laptop and your own Azure subscription. Prepare Linux,
 open the repository in Visual Studio Code, edit the configuration files,
 then deploy, test, inspect evidence, and clean up.
 
+## How to read commands and editing instructions
+
+- **Copy unchanged:** paste the entire Bash block into the specified Linux terminal.
+  Do not replace variable names such as `$poc_subscription_id`; the shell fills them in.
+- **Answer the prompt:** paste unchanged, then enter your own value when asked.
+  For login, use the current URL and device code printed by Azure CLI.
+- **Review fixed values first:** the label identifies values to review or change.
+  Keep related commands consistent.
+- **Edit this file:** change the listed configuration values in VS Code and save.
+  Configuration tables and example names are explanations, not terminal commands.
+- **Expected output:** text blocks show results or prompts; do not execute them.
+
+Commands using shell variables must run in the same terminal where those variables
+were set. In another terminal, repeat the relevant selection or prompts first.
+From Step 11 onward, run repository commands from the cloned repository root.
+Do not paste Markdown code fences into the terminal.
+
 ## Choose where commands run
 
 | Your setup | VS Code runs on | Azure CLI, Terraform and Bash run on |
@@ -81,6 +98,8 @@ If your tools are already installed, inspect their versions before changing them
 
 ### Step 1 — Check the operating system
 
+**Copy unchanged — check the Linux version and architecture.**
+
 ```bash
 cat /etc/os-release
 dpkg --print-architecture
@@ -89,6 +108,8 @@ dpkg --print-architecture
 Expected: Ubuntu 22.04 or 24.04 and `amd64` for this guide.
 
 ### Step 2 — Install Linux utilities
+
+**Copy unchanged — installs Linux utilities; sudo may ask for your Linux password.**
 
 ```bash
 sudo apt-get update &&
@@ -104,9 +125,13 @@ Coreutils supplies utilities including timeout, seq, tee, and sha256sum.
 
 ### Step 3 — Add the Microsoft package signing key
 
+**Copy unchanged — creates the package-key directory.**
+
 ```bash
 sudo mkdir -p /etc/apt/keyrings
 ```
+
+**Copy unchanged — installs the Microsoft package signing key.**
 
 ```bash
 (
@@ -121,6 +146,8 @@ sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
 Expected: successful completion; little or no output.
 
 ### Step 4 — Add the Azure CLI repository
+
+**Copy unchanged — detects Ubuntu and writes the Azure CLI package source.**
 
 ```bash
 poc_ubuntu_codename="$(lsb_release -cs)"
@@ -139,6 +166,8 @@ Expected: the repository definition is printed with jammy or noble.
 
 ### Step 5 — Install and check Azure CLI
 
+**Copy unchanged — installs Azure CLI.**
+
 ```bash
 sudo apt-get update &&
 sudo apt-get install -y azure-cli &&
@@ -149,6 +178,8 @@ Expected: Azure CLI prints its version information.
 The onboarding Bicep parameter-file workflow requires Azure CLI >= 2.53.0.
 
 ### Step 6 — Add the HashiCorp package signing key
+
+**Copy unchanged — installs the HashiCorp package signing key.**
 
 ```bash
 (
@@ -164,6 +195,8 @@ Expected: successful completion.
 
 ### Step 7 — Add the Terraform repository
 
+**Copy unchanged — detects Ubuntu and writes the Terraform package source.**
+
 ```bash
 poc_ubuntu_codename="$(lsb_release -cs)"
 
@@ -174,6 +207,8 @@ printf '%s\n' \
 
 ### Step 8 — Install Terraform and verify compatibility
 
+**Copy unchanged — installs Terraform; check compatibility with the next block.**
+
 ```bash
 sudo apt-get update &&
 sudo apt-get install -y terraform &&
@@ -182,6 +217,8 @@ terraform version
 
 The repository requires Terraform >= 1.9.0 and < 2.0.0.
 Check that requirement explicitly:
+
+**Copy unchanged — checks the installed Terraform version.**
 
 ```bash
 python3 - <<'CHECK'
@@ -207,6 +244,8 @@ the repository's range, stop and install a compatible version using the
 official Terraform instructions. Do not bypass the version constraint.
 
 ### Step 9 — Check all required commands
+
+**Copy unchanged — checks required tools.**
 
 ```bash
 python3 - <<'CHECK'
@@ -241,6 +280,8 @@ Use the Windows/macOS installer on those laptops. On an Ubuntu desktop,
 download the AMD64 .deb package and install it with the graphical installer,
 or run this in a local Ubuntu terminal using the actual downloaded file path:
 
+**Copy unchanged; answer the prompt — enter the downloaded .deb file path. Ubuntu desktop only.**
+
 ```bash
 read -r -p "Downloaded VS Code .deb file path: " vscode_package
 sudo apt install "$vscode_package"
@@ -264,6 +305,8 @@ before accepting a first connection. Select Linux when asked for the host platfo
 Open Terminal → New Terminal in the connected window. Commands now execute
 on the Ubuntu VM. Verify this before installing tools or cloning:
 
+**Copy unchanged — verifies which Linux machine your terminal uses.**
+
 ```bash
 uname -s
 hostname
@@ -278,6 +321,8 @@ Do not run the Linux preparation commands in a local Windows/macOS terminal.
 
 In the selected Linux terminal:
 
+**Copy unchanged — clones the learning repository. Stop if the destination folder already exists.**
+
 ```bash
 mkdir -p ~/Workspace/Projects
 cd ~/Workspace/Projects
@@ -290,6 +335,8 @@ A public HTTPS clone does not require you to configure a GitHub SSH key.
 
 On a local Ubuntu desktop, open the folder with:
 
+**Copy unchanged — opens VS Code on Ubuntu desktop. Remote SSH users use File → Open Folder instead.**
+
 ```bash
 code .
 ```
@@ -298,6 +345,8 @@ If `code` is unavailable, use File → Open Folder. In a Remote SSH window,
 use File → Open Folder to select the cloned folder on the Ubuntu host.
 Review the repository before granting Workspace Trust. Reopen the integrated
 terminal after opening the folder and confirm it is at the repository root:
+
+**Copy unchanged — checks the repository directory and Git status.**
 
 ```bash
 pwd
@@ -310,12 +359,16 @@ for highlighting and completion. These do not replace the installed CLI tools.
 
 #### Sign in to your Azure subscription
 
+**Copy unchanged; follow login instructions — enter the printed device code in your browser.**
+
 ```bash
 az login --use-device-code
 ```
 
 Open the printed URL and enter the current code in your laptop browser.
 Sign in to the account that owns or is authorized for your learning subscription.
+
+**Copy unchanged; answer the prompt — enter your own subscription ID and verify the displayed account.**
 
 ```bash
 read -r -p "Azure subscription ID: " poc_subscription_id
@@ -330,6 +383,8 @@ Verify the intended account and subscription before creating resources.
 Successful login does not by itself establish resource or role-assignment permissions.
 
 ### Step 11 — Prepare Azure CLI capabilities
+
+**Copy unchanged — prepares the logging extension and Bicep CLI; inspect existing installations first.**
 
 ```bash
 az extension add --name log-analytics
@@ -353,6 +408,8 @@ and retention, and restricts network access.
 
 Create the local parameter file only if it does not already exist:
 
+**Copy unchanged — creates local Bicep parameters only if absent. Edit the file afterward.**
+
 ```bash
 if [[ -e bootstrap/state/bicep/main.local.bicepparam ]]; then
   echo "Existing local parameters found; review them instead of overwriting."
@@ -364,6 +421,8 @@ fi
 
 Obtain your signed-in user object ID:
 
+**Copy unchanged — obtains your Entra user object ID.**
+
 ```bash
 az ad signed-in-user show --query id --output tsv
 ```
@@ -371,7 +430,7 @@ az ad signed-in-user show --query id --output tsv
 If directory access prevents this lookup, ask the administrator for the
 correct user object ID. Do not substitute a subscription ID or application ID.
 
-In VS Code's Explorer, open `bootstrap/state/bicep/main.local.bicepparam`.
+**Edit this file:** in VS Code's Explorer, open `bootstrap/state/bicep/main.local.bicepparam`.
 This is your private local storage configuration. Edit it and save with Ctrl+S
 (Cmd+S on a macOS laptop).
 
@@ -405,6 +464,8 @@ This step creates resources that remain outside POC cleanup.
 
 First inspect the proposed deployment:
 
+**Review fixed values first — keep westeurope for the default deployment location, or replace it with your intended deployment location. Keep the deployment name consistent across all three bootstrap commands. This previews changes.**
+
 ```bash
 az deployment sub what-if \
   --name taipan-tfstate-bootstrap \
@@ -416,6 +477,8 @@ Use the appropriate deployment location if required by your environment.
 Review the resource group, storage account, container, and role assignments.
 
 Then deploy:
+
+**Review fixed values first — use the same deployment name and location as the preview. This creates retained Azure state-storage resources.**
 
 ```bash
 az deployment sub create \
@@ -429,6 +492,8 @@ Do not prefix a `.bicepparam` path with `@`.
 
 Inspect the backend outputs:
 
+**Copy unchanged if you kept the default deployment name — otherwise replace taipan-tfstate-bootstrap with the name used above.**
+
 ```bash
 az deployment sub show \
   --name taipan-tfstate-bootstrap \
@@ -441,6 +506,8 @@ Expected: resource group, storage account, container, and Azure AD auth outputs.
 ### Step 14 — Verify state data access
 
 Enter the values from those outputs:
+
+**Copy unchanged; answer prompts — enter storage names from the deployment outputs.**
 
 ```bash
 read -r -p "State resource group: " state_resource_group
@@ -470,6 +537,8 @@ The launcher does not ask for resource names or network IP ranges.
 
 Create your local core variables file without overwriting existing settings:
 
+**Copy unchanged — creates local core variables only if absent. Edit values using the tables below.**
+
 ```bash
 if [[ -e infra/terraform/terraform.tfvars ]]; then
   echo "Existing core inputs found; review instead of overwriting."
@@ -478,7 +547,7 @@ else
 fi
 ```
 
-Open these two files in VS Code's Explorer:
+**Edit these files:** open the following two files in VS Code's Explorer, change the intended configuration values, and save:
 
 | File | Purpose |
 | --- | --- |
@@ -551,6 +620,8 @@ Use this step only when no existing POC is running.
 
 **Recommended student route:** run the guided launcher from the repository:
 
+**Copy unchanged; answer prompts — select your Azure context and backend storage. Creates no Azure resources.**
+
 ```bash
 bash scripts/start-poc.sh --prepare-only
 ```
@@ -601,6 +672,8 @@ They are an alternative reference, not an additional student step.
 These commands are for a new checkout with no existing deployment.
 Do not point them at another user's live state.
 
+**Alternative route; review state keys first — use instead of the launcher. Storage variables come from Step 14; use distinct core/harness keys for each separate lab.**
+
 ```bash
 export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
 export ARM_TENANT_ID="$(az account show --query tenantId --output tsv)"
@@ -641,6 +714,8 @@ Review that plan. Run the command below only if you changed configuration
 after that plan or followed the manual initialization alternative.
 
 
+**Copy unchanged — plan-only. Skip if the launcher already produced the current plan and inputs have not changed.**
+
 ```bash
 bash scripts/run-vwan-lifecycle.sh --mode poc --plan-only
 ```
@@ -657,6 +732,8 @@ The harness plan waits until the core exists.
 Plan-only does not prove traffic or logging works.
 
 ### Step 18 — Deploy and test — billable resources created
+
+**Copy unchanged only after approving deployment — EUR 10 is an allowance, not an enforced cap. Creates billable POC resources.**
 
 ```bash
 bash scripts/run-vwan-lifecycle.sh \
@@ -684,6 +761,8 @@ They finish early when all required evidence is available.
 Azure requests and deployment add elapsed time; this is not a total-runtime limit.
 
 An optional shorter polling window can be selected before execution:
+
+**Optional setting — skip to keep the default 90-minute window. Change 30 only to a whole number from 1 to 90 if you deliberately want a different window.**
 
 ```bash
 export TAIPAN_TELEMETRY_WAIT_MINUTES=30
@@ -762,6 +841,8 @@ Destroy remains available to stop ongoing resource charges.
 
 Use the original execution directory, not a nested retest directory:
 
+**Copy unchanged; answer the prompt — enter the original execution evidence directory, not a nested retest directory.**
+
 ```bash
 read -r -p "Original execution evidence directory: " poc_run
 bash scripts/retest-vwan-poc.sh "$poc_run"
@@ -776,6 +857,8 @@ A successful retest does not rewrite the original failed run.
 
 Interactive cleanup:
 
+**Copy unchanged; answer the prompt — enter the original execution directory. Review destroy plans and type yes when asked.**
+
 ```bash
 read -r -p "Original execution evidence directory: " poc_run
 bash scripts/destroy-vwan-poc.sh "$poc_run"
@@ -784,6 +867,8 @@ bash scripts/destroy-vwan-poc.sh "$poc_run"
 Review the plans and type `yes` when Terraform requests confirmation.
 
 Explicit cleanup without confirmation prompts:
+
+**Copy unchanged only when deletion is intended — requires poc_run from the previous block in this terminal. Deletes without confirmation prompts.**
 
 ```bash
 bash scripts/destroy-vwan-poc.sh "$poc_run" --yes
@@ -802,6 +887,8 @@ Do not delete state, input snapshots, or key records to bypass a failed safeguar
 ### Step 24 — Verify cleanup
 
 Enter the exact names from your core and harness configuration files:
+
+**Copy unchanged; answer prompts — enter your actual core and test resource-group names. Requires the subscription variable from Step 10 in this terminal.**
 
 ```bash
 read -r -p "Core POC resource group: " poc_core_group
