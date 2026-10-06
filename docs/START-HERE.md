@@ -1,44 +1,55 @@
-# Start Here
+# Start here
 
-Use this page as the front door to the accelerator.
+Created and maintained by Mohamed Elrehan for Taipan Academy.
 
-## Choose your route
+## Current supported route
 
-| Route | Use it when | Outcome |
-| --- | --- | --- |
-| POC | You need proof before committing to production | Deploy, test, export evidence, then remove all POC resources |
-| Production | You have approved design, ownership, funding, and change control | Retain the secured vWAN core and remove only the temporary test harness |
+This version provides a disposable single-region Azure vWAN learning POC.
+Production execution is disabled. Multi-region and CI/CD execution are future scope.
 
-## The guided path
+1. Prepare tools and state access using [onboarding](operations/CUSTOMER-ONBOARDING.md).
+2. Follow the [POC quick-start](POC-QUICKSTART.md).
+3. Use the [detailed runbook](POC-RUNBOOK.md) for configuration and recovery.
+4. Review the plan before deployment.
+5. Deploy and verify traffic, firewall telemetry, and workbook evidence.
+6. Inspect the workbook before choosing Destroy or Keep.
+7. Verify cleanup using Terraform state and Azure inventory.
 
-1. Read the [topology](architecture/TOPOLOGY.md) and confirm it fits the intended use.
-2. Create or select customer-owned Terraform state using the [onboarding guide](operations/CUSTOMER-ONBOARDING.md).
-3. Copy the approved [POC or production profile](../config/profiles/PROFILES.md).
-4. Run the lifecycle runner in plan-only mode and review the exact result.
-5. Obtain cost and change approval.
-6. Execute the approved path.
-7. Read the exported [evidence report](testing/EVIDENCE.md).
+## Matching defaults
 
-## What the first profile includes
+For the beginner path, copy `infra/terraform/terraform.tfvars.example`
+to the ignored local `infra/terraform/terraform.tfvars`.
 
-- One Standard Azure Virtual WAN and one virtual hub
-- Azure Firewall Standard or Premium and Firewall Policy
-- Routing intent for private and Internet traffic
-- Optional isolated acceptance test: two spoke VNets and two private probe VMs
-- Azure Run Command tests, Log Analytics evidence, and `REPORT.md`
+These Taipan names match the harness example.
+The Contoso profile is an alternative configuration, not a drop-in replacement:
+its names must also be applied to the harness's core references.
 
-It intentionally excludes VPN, ExpressRoute, Point-to-Site VPN, Bastion, workload resources, customer data, and DDoS Network Protection.
+## What the POC includes
 
-## Before any deploy
+- One Standard Virtual WAN and one virtual hub.
+- Azure Firewall Standard, firewall policy, and routing intent.
+- Two test spokes and two private probe VMs.
+- Controlled private and HTTPS allow/deny tests.
+- Log Analytics, a workbook, and local evidence reports.
 
-- Confirm non-overlapping IP ranges with the network authority.
-- Confirm region availability and a current cost estimate.
-- Record the service owner, cost centre, environment, and POC cleanup time.
-- Use only the customer subscription and customer-owned state account.
+VPN, ExpressRoute, production workloads, multi-region validation, and
+intrusion-prevention tests are outside the current verified POC.
 
-## Need more detail?
+## Costs and ownership
 
-- [Customer inputs](../config/profiles/PROFILES.md)
-- [Architecture scope](architecture/FIRST-PROFILE-SCOPE-MATRIX.md)
-- [Deployment gate](operations/DEPLOYMENT-GATE.md)
-- [Test harness contract](architecture/TEST-HARNESS-CONTRACT.md)
+The user owns the subscription, identities, Terraform state, resources, and costs.
+The cost argument records approval; it does not enforce a spending cap.
+
+Keep retains billable resources. Destroy removes the POC harness and core.
+The separately bootstrapped state storage remains and may incur charges.
+
+Do not remove the state backend while deployment or recovery still needs it.
+
+## Design references
+
+- [Topology](architecture/TOPOLOGY.md)
+- [Architecture contract](architecture/ARCHITECTURE-CONTRACT.md)
+- [Configuration profiles](../config/profiles/PROFILES.md)
+
+Earlier production design documents describe future workflows.
+Use the quick-start and runbook for current execution instructions.
