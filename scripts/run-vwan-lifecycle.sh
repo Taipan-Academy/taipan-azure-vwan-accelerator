@@ -59,6 +59,7 @@ done
 
 script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "$script_directory/.." && pwd)"
+source "$script_directory/lib/terraform-cleanup.sh"
 core_directory="$repository_root/infra/terraform"
 harness_directory="$repository_root/infra/terraform/test-harness"
 core_tfvars="$core_directory/terraform.tfvars"
@@ -105,7 +106,7 @@ cleanup() {
 
       if [[ "$harness_applied" == true ]]; then
         echo "[CLEANUP] Removing POC harness..."
-        if ! terraform -chdir="$harness_directory" destroy -auto-approve; then
+        if ! terraform_destroy_with_retry "$harness_directory" "$evidence_directory" harness -auto-approve; then
           cleanup_status="FAIL"
         fi
       fi
@@ -113,7 +114,7 @@ cleanup() {
       if [[ "$mode" == "poc" && "$core_applied" == true ]]; then
         if [[ "$cleanup_status" == "PASS" ]]; then
           echo "[CLEANUP] Removing POC core..."
-          if ! terraform -chdir="$core_directory" destroy -auto-approve; then
+          if ! terraform_destroy_with_retry "$core_directory" "$evidence_directory" core -auto-approve; then
             cleanup_status="FAIL"
           fi
         else

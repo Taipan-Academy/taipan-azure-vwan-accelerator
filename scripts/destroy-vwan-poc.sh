@@ -8,6 +8,7 @@ fi
 
 run="$(cd "$1" && pwd)"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root/scripts/lib/terraform-cleanup.sh"
 [[ "$(cat "$run/repository-path.txt")" == "$root" ]] || {
   echo "Run belongs to a different repository path. Review before recovery."
   exit 1
@@ -34,8 +35,8 @@ echo "Order: test harness first, then disposable vWAN core."
 echo "Terraform will display the resources in each destroy plan."
 
 # Interactive destroy: review Terraform's targets and type yes.
-terraform -chdir="$root/infra/terraform/test-harness" destroy
-terraform -chdir="$root/infra/terraform" destroy
+terraform_destroy_with_retry "$root/infra/terraform/test-harness" "$run" harness
+terraform_destroy_with_retry "$root/infra/terraform" "$run" core
 
 for directory in \
   "$root/infra/terraform/test-harness" \

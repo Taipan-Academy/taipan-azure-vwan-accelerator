@@ -515,7 +515,20 @@ This path uses interactive Terraform destruction.
 Normally there are two confirmations. An already-empty state may need no
 confirmation.
 
-The script stops on a failed destroy command.
+Both Destroy now and Destroy later use a shared cleanup helper.
+Each Terraform destroy allows at most three attempts. Only the recognized
+context deadline exceeded error is retried, with a 30-second wait.
+Access/authentication errors, state-lock errors, cancellation, and other
+unrecognized errors stop cleanup without an automatic retry.
+
+Destroy later remains interactive: review each displayed plan and type yes
+when prompted, including on a retry. Destroy now uses the deletion choice
+already made in the lifecycle prompt.
+
+Each attempt is recorded in a separate cleanup directory under the run's
+evidence directory. A successful destroy must also leave an empty Terraform
+state. Harness failure prevents core destruction; recovery inputs are retained.
+Azure inventory verification remains a separate required check.
 After successful destruction, it checks both states are empty, removes the
 generated harness input file and dedicated key, and writes CLEANUP-RESULT.md.
 
@@ -692,8 +705,22 @@ verified. Backend and input checksum checks passed during retest.
 Cleanup with the relocated workbook completed on 2026-10-06. Azure inventory
 confirmed both POC resource groups were absent; local evidence was retained.
 
-Pending: a fresh full lifecycle using both changes, with successful
-acceptance and final cleanup verification.
+A subsequent fresh run, lifecycle-20261006T110850Z, passed all six acceptance
+checks using bounded traffic refreshes. Both evidence tables were visually
+confirmed in the workbook in the core resource group before choosing Destroy.
+
+Initial automatic cleanup failed while reading Probe B's OS disk, with
+context deadline exceeded. The core and inputs were retained. The later-destroy
+recovery succeeded, and Azure inventory confirmed both resource groups absent.
+The original lifecycle result remains Acceptance PASS / Cleanup FAIL;
+the later cleanup result is separate. The underlying timeout cause is unknown.
+
+The shared cleanup-retry helper subsequently passed Bash syntax checks and
+nine simulated tests: immediate success, timeout recovery, retry exhaustion,
+access error, unknown error, cancellation, interruption, state-read failure,
+and non-empty state. No Azure calls were made by these simulated tests.
+
+Pending: live full-lifecycle verification using the new shared cleanup helper.
 
 This guide describes an interactive Linux workflow with workbook access from
 a Mac browser. AWS/GCP deployments, production execution, and custom AI agents
