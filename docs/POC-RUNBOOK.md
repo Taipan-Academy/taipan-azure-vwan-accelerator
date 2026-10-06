@@ -808,7 +808,21 @@ The cleanup helper confirmed empty Terraform states, and Azure inventory
 confirmed both POC resource groups were absent. Evidence was retained.
 
 Pending:
-- Verify a fresh full lifecycle with the shared telemetry deadline and workbook checks.
+Fresh full-lifecycle validation completed on 2026-10-06 using commit
+7282ec9, run lifecycle-20261006T163650Z.
+
+- All four traffic checks passed.
+- Network telemetry passed at query 1.
+- Application telemetry passed at query 4 after a traffic refresh.
+- Deployed-workbook configuration and both POC query checks passed.
+- The user confirmed logs were visible before choosing Destroy.
+- Choosing 1 triggered automatic cleanup without further confirmation.
+- Final lifecycle result: Acceptance PASS / Cleanup PASS.
+- Terraform cleanup verified empty states.
+- Azure inventory confirmed both POC resource groups absent.
+
+This verifies one successful fresh execution. It does not establish production
+readiness or guarantee future Azure operations will avoid delays or failures.
 - Complete and validate fresh-machine setup instructions.
 - Review documentation and branding before release.
 

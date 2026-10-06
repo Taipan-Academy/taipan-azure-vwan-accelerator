@@ -294,6 +294,11 @@ deployed-workbook configuration, and both workbook POC queries.
 
 Nine mocked workbook regression checks passed.
 
-Fresh deployment with the shared telemetry deadline remains to be verified.
+A fresh full lifecycle passed on 2026-10-06 using commit 7282ec9:
+deployment, traffic and telemetry checks, workbook validation, and automatic
+cleanup after choosing Destroy. Both POC resource groups were confirmed absent.
+Evidence: lifecycle-20261006T163650Z.
+
+Fresh-machine setup and other operating-system execution paths remain unverified.
 Unattended cleanup with --yes completed successfully. Terraform states
 were verified empty, and both POC resource groups were confirmed absent.
