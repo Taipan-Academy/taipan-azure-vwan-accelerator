@@ -1,79 +1,67 @@
-# Azure vWAN POC — Start to Finish
+# Azure vWAN POC — VS Code Student Guide
 
 Created and maintained by **Mohamed Elrehan** for **Taipan Academy**.
 
-This is the main student and video guide. Follow the steps in order.
-It includes the commands for tool installation, Azure preparation,
-Terraform initialization, deployment, verification, and cleanup.
+Start with a new laptop and your own Azure subscription. Prepare Linux,
+open the repository in Visual Studio Code, edit the configuration files,
+then deploy, test, inspect evidence, and clean up.
 
-This guide covers one-time preparation and the complete POC workflow.
-Once tools and state storage are ready, the guided launcher simplifies
-account selection, backend initialization, input checks, planning, and execution.
+## Choose where commands run
 
-## Guided route after one-time preparation
+| Your setup | VS Code runs on | Azure CLI, Terraform and Bash run on |
+| --- | --- | --- |
+| Ubuntu desktop 22.04/24.04 AMD64 | The Ubuntu laptop | The same Ubuntu laptop |
+| Windows or macOS laptop with an Ubuntu VM | Your laptop, with Remote SSH | The Ubuntu VM through VS Code's remote terminal |
 
-Run from the repository directory with no existing POC running.
+This guide's Linux installation commands target Ubuntu 22.04/24.04 AMD64.
+They are not native macOS or PowerShell commands. A Linux server without a
+desktop does not need the VS Code desktop application installed on it.
+Windows WSL and ARM64 installation are outside this walkthrough.
 
-First, prepare and review the plan:
+## The student workflow
 
-```bash
-bash scripts/start-poc.sh --prepare-only
-```
+1. Prepare Linux tools once: Steps 1–9.
+2. Install/open VS Code, clone the repository, and sign in: Step 10.
+3. Prepare Azure capabilities and state storage once: Steps 11–14.
+4. Edit the configuration files in VS Code: Step 15.
+5. Initialize state and review the plan with the launcher: Steps 16–17.
+6. Run the tested lifecycle and inspect results: Steps 18–21.
+7. Retest if retained, destroy, and verify cleanup: Steps 22–24.
 
-This checks tools, guides Azure account and subscription selection, reuses
-existing state storage, initializes separate backends, requires empty POC
-states, checks matching inputs, and runs plan-only. It creates no Azure resources.
+The normal POC workflow is **clone → edit variables → plan → run → inspect
+→ keep or destroy**. Supporting scripts orchestrate the Terraform modules,
+traffic tests, exact firewall-log checks, workbook validation, and cleanup.
+You do not need to edit infrastructure module code.
 
-When ready to deploy:
+## Before starting
 
-```bash
-bash scripts/start-poc.sh
-```
+- Use a dedicated learning subscription or environment you are authorized to use.
+- Have sudo access on the Ubuntu machine and Internet access for package installation.
+- Have permissions to deploy/delete POC resources and access Terraform state.
+- Creating state-storage role assignments requires role-assignment permissions;
+  Contributor alone is insufficient. Ask an authorized administrator when needed.
+- For Remote SSH, have a reachable Ubuntu host and working SSH credentials first.
+- Start this new-environment walkthrough only when no existing POC is running.
+- Run one command block at a time. Stop and investigate any failure.
 
-Review the account, subscription, backend locations, inputs, and plan.
-Type DEPLOY only when ready to create billable POC resources with the
-displayed EUR 10 allowance. That allowance does not enforce a spending cap.
-
-The existing lifecycle then deploys, tests traffic, verifies firewall logs
-and workbook query evidence, and offers Destroy or Keep. Inspect the workbook
-before choosing. After destruction, verify both POC resource groups are absent.
-
-The launcher does not install tools or create state storage.
-Complete the preparation steps below if those are not ready.
-For custom names or IP ranges, prepare matching core and harness inputs first.
-
-**Validation:** the launcher's preparation path passed against existing
-initialized backends on 2026-10-06. Its guided deployment path has not yet
-been verified live. The underlying full POC lifecycle has passed separately.
-
-## Before following this guide
-
-- Use a dedicated learning environment and an Azure subscription you control.
-- Installation instructions target Ubuntu 22.04/24.04 AMD64.
-- You need sudo access on Linux.
-- Azure deployment requires suitable resource permissions.
-- State bootstrap role assignments require role-assignment permissions;
-  have an authorized administrator perform that step if necessary.
-- Stop if a command fails; do not continue blindly.
-- Follow this new-environment guide only when no existing POC is running.
-
-**Cost notice:** POC resources are billable. The cost approval argument does
-not enforce a spending cap. Separately created Terraform-state storage
+**Costs:** state-storage creation and POC deployment create billable resources.
+The EUR 10 approval argument does not enforce a spending cap. State storage
 remains after POC cleanup and may continue incurring charges.
 
-A fresh POC lifecycle passed deployment, acceptance, workbook checks, and
-automatic cleanup. These complete clean-machine setup instructions have
-not yet been verified end to end.
+| Activity | Effect |
+| --- | --- |
+| Tool installation | Installs software on the Linux machine |
+| Clone and edit | Creates/changes local repository files |
+| State bootstrap | Creates retained Azure state-storage resources |
+| Prepare-only / plan | Reads Azure and state; creates no Azure resources |
+| POC execution | Creates billable Azure network and test resources |
+| Destroy | Deletes the dedicated POC resources; retains local evidence |
 
-## How to use the guide
-
-Run commands in the Linux terminal. Use your browser for Azure login
-and workbook inspection. Run one command block at a time.
-
-The installation commands install software on the machine.
-The state bootstrap and POC execution commands create Azure resources.
-Plan-only does not create POC resources. Destroy commands delete them.
-
+**Validation:** the underlying full lifecycle passed acceptance, workbook
+checks, automatic cleanup, and Azure inventory verification on 2026-10-06.
+The launcher's preparation path passed with existing initialized backends.
+Its full deployment path, fresh-backend initialization, clean-machine setup,
+and this VS Code walkthrough remain unverified end to end.
 
 ## Part 1 — Install the tools
 
@@ -244,17 +232,90 @@ Expected: every command is found.
 
 ## Part 2 — Prepare Azure and Terraform
 
-### Step 10 — Clone and authenticate
+### Step 10 — Open VS Code, clone, and authenticate
 
-For a new checkout:
+#### Install VS Code on your laptop
+
+Download Visual Studio Code from [the official download page](https://code.visualstudio.com/download).
+Use the Windows/macOS installer on those laptops. On an Ubuntu desktop,
+download the AMD64 .deb package and install it with the graphical installer,
+or run this in a local Ubuntu terminal using the actual downloaded file path:
 
 ```bash
+read -r -p "Downloaded VS Code .deb file path: " vscode_package
+sudo apt install "$vscode_package"
+```
+
+This installs an editor, not Azure resources. Run VS Code as your normal user,
+not with sudo. Follow [Microsoft's Linux instructions](https://code.visualstudio.com/docs/setup/linux)
+if installation fails.
+
+#### Choose local Ubuntu or Remote SSH
+
+**Local Ubuntu desktop:** open VS Code, then select Terminal → New Terminal.
+Use Bash on this laptop for the remaining commands.
+
+**Windows/macOS with an Ubuntu VM:** install Microsoft's **Remote - SSH**
+extension in your laptop's VS Code. From the Command Palette, choose
+**Remote-SSH: Connect to Host**, enter your actual `username@hostname`, and
+authenticate with your existing SSH credentials. Verify the host fingerprint
+before accepting a first connection. Select Linux when asked for the host platform.
+
+Open Terminal → New Terminal in the connected window. Commands now execute
+on the Ubuntu VM. Verify this before installing tools or cloning:
+
+```bash
+uname -s
+hostname
+pwd
+```
+
+Expected: Linux and the intended machine. If SSH is not yet working, complete
+host access setup first using [Microsoft's Remote SSH guide](https://code.visualstudio.com/docs/remote/ssh).
+Do not run the Linux preparation commands in a local Windows/macOS terminal.
+
+#### Clone and open the project
+
+In the selected Linux terminal:
+
+```bash
+mkdir -p ~/Workspace/Projects
+cd ~/Workspace/Projects
 git clone https://github.com/Taipan-Academy/taipan-azure-vwan-accelerator.git
 cd taipan-azure-vwan-accelerator
+```
+
+If this folder already exists, inspect it rather than cloning over existing work.
+A public HTTPS clone does not require you to configure a GitHub SSH key.
+
+On a local Ubuntu desktop, open the folder with:
+
+```bash
+code .
+```
+
+If `code` is unavailable, use File → Open Folder. In a Remote SSH window,
+use File → Open Folder to select the cloned folder on the Ubuntu host.
+Review the repository before granting Workspace Trust. Reopen the integrated
+terminal after opening the folder and confirm it is at the repository root:
+
+```bash
+pwd
+git status --short --branch
+```
+
+The Explorer should show `bootstrap`, `infra`, `scripts`, `tests`, and `docs`.
+You may install **HashiCorp Terraform** and **Microsoft Bicep** editor extensions
+for highlighting and completion. These do not replace the installed CLI tools.
+
+#### Sign in to your Azure subscription
+
+```bash
 az login --use-device-code
 ```
 
-Open the printed URL and enter the current code in your browser.
+Open the printed URL and enter the current code in your laptop browser.
+Sign in to the account that owns or is authorized for your learning subscription.
 
 ```bash
 read -r -p "Azure subscription ID: " poc_subscription_id
@@ -265,14 +326,8 @@ az account show \
 az group list --output none
 ```
 
-Verify the intended account and subscription.
-
-The operator needs permission to deploy/delete POC resources and permission
-to deploy the subscription-scoped state bootstrap.
-
-Creating the bootstrap's role assignments additionally requires appropriate
-role-assignment permissions. Contributor alone does not grant that capability.
-Have an authorized administrator perform the bootstrap when needed.
+Verify the intended account and subscription before creating resources.
+Successful login does not by itself establish resource or role-assignment permissions.
 
 ### Step 11 — Prepare Azure CLI capabilities
 
@@ -316,11 +371,9 @@ az ad signed-in-user show --query id --output tsv
 If directory access prevents this lookup, ask the administrator for the
 correct user object ID. Do not substitute a subscription ID or application ID.
 
-Edit the local file:
-
-```bash
-nano bootstrap/state/bicep/main.local.bicepparam
-```
+In VS Code's Explorer, open `bootstrap/state/bicep/main.local.bicepparam`.
+This is your private local storage configuration. Edit it and save with Ctrl+S
+(Cmd+S on a macOS laptop).
 
 Replace:
 - `location`: approved state-storage region.
@@ -336,7 +389,7 @@ Use `publicNetworkAccess = 'Enabled'` for this IP-restricted beginner path.
 The example `203.0.113.0/24` and all-zero object ID are placeholders.
 Do not deploy them unchanged.
 
-In nano: Ctrl+O, Enter saves; Ctrl+X exits.
+Save the file before running the next deployment command.
 
 Storage IP rules do not allow clients merely because they are Azure VMs.
 Clients in the same Azure region require an appropriate VNet/service-endpoint
@@ -409,9 +462,91 @@ Resolve it before initialization; do not repeatedly deploy the POC.
 
 If you open a new terminal, re-enter the subscription and backend variables.
 
-### Step 15 — Configure state storage using the launcher
+### Step 15 — Customize your POC in VS Code
 
-Complete Steps 12–14 first: create your Azure state storage and verify access.
+Configure before planning or creating POC resources. You can use the matching
+example defaults for an isolated lab, or change them to your naming convention.
+The launcher does not ask for resource names or network IP ranges.
+
+Create your local core variables file without overwriting existing settings:
+
+```bash
+if [[ -e infra/terraform/terraform.tfvars ]]; then
+  echo "Existing core inputs found; review instead of overwriting."
+else
+  (umask 077; cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars)
+fi
+```
+
+Open these two files in VS Code's Explorer:
+
+| File | Purpose |
+| --- | --- |
+| `infra/terraform/terraform.tfvars` | Your private local core settings; ignored by Git |
+| `infra/terraform/test-harness/terraform.tfvars.example` | The test settings the lifecycle copies to its generated local file |
+
+The harness example is tracked by Git. Keep personal lab changes local unless
+you intentionally maintain your own reviewed fork. Check Source Control before
+committing. Do not edit files inside `.terraform/modules`.
+
+#### Core variables
+
+| Variable | Meaning / example | Matching harness field |
+| --- | --- | --- |
+| `location` | Azure region, e.g. `westeurope` | `location` |
+| `resource_group_name` | Core RG, e.g. `rg-alex-vwan-weu-poc` | `core_resource_group_name` |
+| `virtual_wan_name` | WAN name, e.g. `vwan-alex-weu-poc` | No repeated reference |
+| `virtual_hub_name` | Hub name, e.g. `vhub-alex-weu-poc` | `core_virtual_hub_name` |
+| `azure_firewall_name` | Firewall name, e.g. `afw-alex-weu-poc` | `core_azure_firewall_name` |
+| `firewall_policy_name` | Policy name, e.g. `afwp-alex-weu-poc` | `core_firewall_policy_name` |
+| `hub_address_space` | Module hub address space, default `10.250.0.0/16` | No repeated reference |
+| `virtual_hub_address_prefix` | Actual hub prefix, default `10.250.0.0/24` | No repeated reference |
+| `azure_firewall_sku_tier` | Keep `Standard` for the verified lesson | None |
+| `enable_telemetry` | Keep `false` for the lesson's module telemetry setting | Firewall diagnostics are configured separately by the harness |
+| `tags` | Labels such as environment, purpose, owner and cost centre | Harness has its own tags |
+
+Do not interpret `enable_telemetry = false` as disabling the POC firewall logs.
+The test harness separately enables diagnostic settings and Log Analytics.
+Premium/IDPS testing is not part of this verified lesson.
+
+For example, changing the core `virtual_hub_name` to `vhub-alex-weu-poc`
+also requires changing the harness `core_virtual_hub_name` to exactly that value.
+Apply all five matching name/region updates in the table before planning.
+
+#### Harness variables
+
+| Variable(s) | What to edit |
+| --- | --- |
+| `test_resource_group_name` | Dedicated test RG, e.g. `rg-alex-vwan-weu-test`; different from the core and state RGs |
+| `log_analytics_workspace_name` | Workspace name, e.g. `log-alex-vwan-weu-test` |
+| `spoke_a_name`, `spoke_b_name` | Names of the two test VNets |
+| `spoke_a_address_space`, `spoke_b_address_space` | Non-overlapping VNet ranges; defaults `10.10.0.0/16`, `10.20.0.0/16` |
+| `spoke_a_subnet_prefix`, `spoke_b_subnet_prefix` | Subnets inside their respective VNets; defaults `10.10.1.0/24`, `10.20.1.0/24` |
+| `probe_a_vm_name`, `probe_b_vm_name` | Names of the two private test VMs |
+| `probe_vm_size` | Default `Standard_B1s`; changing size affects availability and cost |
+| `log_retention_days` | Default `30`; changes may affect charges |
+| `tags` | Labels for the temporary test resources |
+| `probe_vm_admin_ssh_public_key` | Leave `REPLACE_WITH_A_DEDICATED_TEST_PUBLIC_KEY` unchanged |
+
+Keep the hub prefix within the intended hub address space and keep hub/spoke
+ranges non-overlapping. Each spoke subnet must fit inside its own VNet.
+Use valid Azure names and confirm region/SKU availability for your subscription.
+The scripts discover probe IPs; do not hardcode guessed VM private addresses.
+
+The lifecycle generates the harness's actual `terraform.tfvars` and a dedicated
+temporary SSH key. Do not create that generated harness file yourself: the
+runner refuses to overwrite one already present.
+
+Save both edited files. Do not change inputs or backend keys while a POC is
+running or retained; retest and destroy use its recorded checksums.
+
+**State configuration is separate:** storage inputs belong in the local Bicep
+parameter file from Step 12. Backend storage locations and state keys are supplied
+in Step 16. They do not belong in the core `terraform.tfvars` file.
+
+### Step 16 — Configure state storage using the launcher
+
+Complete Steps 12–15 first: create your Azure state storage and verify access.
 Use this step only when no existing POC is running.
 
 **Recommended student route:** run the guided launcher from the repository:
@@ -496,36 +631,14 @@ rather than blindly overwriting its settings.
 
 </details>
 
-### Step 16 — Prepare matching POC settings
-
-```bash
-if [[ -e infra/terraform/terraform.tfvars ]]; then
-  echo "Existing core inputs found; review instead of overwriting."
-else
-  cp infra/terraform/terraform.tfvars.example \
-    infra/terraform/terraform.tfvars
-fi
-```
-
-The core Taipan defaults match
-`infra/terraform/test-harness/terraform.tfvars.example`.
-
-If you change core names or region, update the harness's core references
-and region accordingly. Keep hub/spoke ranges non-overlapping and place each
-subnet inside its spoke address space.
-
-The lifecycle generates the actual harness `terraform.tfvars` and a dedicated
-temporary SSH key. Leave the public-key placeholder in the harness example.
-
-Do not commit local parameters, inputs, state, plans, or keys.
 
 ## Part 3 — Run, inspect, and clean up
 
 ### Step 17 — Plan — no resources created
 
-If you completed the guided Step 15, a plan has already been generated.
-Review that plan. Run the command below only if you changed inputs in Step 16
-or followed the manual initialization alternative.
+If you completed guided Step 16, a plan has already been generated.
+Review that plan. Run the command below only if you changed configuration
+after that plan or followed the manual initialization alternative.
 
 
 ```bash
@@ -688,10 +801,12 @@ Do not delete state, input snapshots, or key records to bypass a failed safeguar
 
 ### Step 24 — Verify cleanup
 
-Use your configured names if you changed the defaults:
+Enter the exact names from your core and harness configuration files:
 
 ```bash
-for group in rg-taipan-vwan-weu-test rg-taipan-vwan-weu-example; do
+read -r -p "Core POC resource group: " poc_core_group
+read -r -p "Test POC resource group: " poc_test_group
+for group in "$poc_test_group" "$poc_core_group"; do
   printf '%s exists: ' "$group"
   az group exists \
     --subscription "$poc_subscription_id" \
@@ -729,5 +844,13 @@ even though it is located in the core resource group.
 The prepared-environment POC lifecycle was verified on 2026-10-06:
 Acceptance PASS, Cleanup PASS, and both POC resource groups absent.
 
-This combined guide consolidates the existing instructions.
-Clean-machine installation and onboarding validation remain pending.
+This combined guide includes VS Code editing, the existing Linux preparation,
+and the tested POC scripts. Clean-machine installation, fresh-backend launcher
+initialization, and the complete VS Code walkthrough remain pending live validation.
+Changing names, region, ranges or VM sizes is not covered by the recorded default-run validation.
+
+## Official editor references
+
+- [VS Code downloads](https://code.visualstudio.com/download)
+- [VS Code installation on Linux](https://code.visualstudio.com/docs/setup/linux)
+- [VS Code Remote SSH](https://code.visualstudio.com/docs/remote/ssh)
