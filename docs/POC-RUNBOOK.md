@@ -1,5 +1,8 @@
 # Taipan vWAN Visual POC — User Guide
 
+Quick-start and video walkthrough: [Start here](POC-QUICKSTART.md).
+
+
 ## Purpose
 
 This POC deploys a secured Azure Virtual WAN environment, generates test traffic,
@@ -271,20 +274,45 @@ Acceptance progress includes:
 [TEST 2/4] TCP 8081...
 [TEST 3/4] HTTPS www.example.com:443...
 [TEST 4/4] HTTPS www.microsoft.com:443...
-[TELEMETRY] Network attempt ...
-[TELEMETRY] Application attempt ...
+[READINESS] Elapsed ...; polling time remaining ...
+[TELEMETRY] Network query attempt ...
+[TELEMETRY] Application query attempt ...
+[WORKBOOK] Configuration and query evidence: PASS.
 ```
 
 Individual Azure Run Command requests can take time to return.
 
-Each telemetry stage allows up to 20 query attempts, with 30-second waits
-between unsuccessful attempts. Azure calls add elapsed time.
+After the four traffic checks, both telemetry stages share one polling
+window, defaulting to 90 minutes. The application stage uses the remaining
+time; it does not receive another 90 minutes. Verification finishes early
+when all required decisions are confirmed.
 
-At attempts 2, 6, 10, and 14, an unresolved stage generates fresh traffic
-for its two checks: at most four refreshes per stage. Refresh results are
-saved separately as traffic-refresh files. Command failure, missing expected
-results, or unexpected connectivity stops the test. Acceptance still requires
-the exact firewall Allow/Deny decisions since the current test started.
+Progress shows elapsed and remaining polling time. Unsuccessful queries
+normally have 30-second waits. Deployment, traffic checks, Azure requests,
+and workbook validation add elapsed time; this is not a total-runtime limit.
+
+An unresolved stage refreshes its two traffic checks at query attempt 2,
+then no more often than every five minutes. Refresh results are saved as
+traffic-refresh files. Command failure, missing expected traffic results,
+or unexpected connectivity stops the test.
+
+Acceptance requires exact firewall Allow/Deny decisions since the current
+test started. Background events and events from previous runs cannot
+substitute for those decisions.
+
+The polling window can be configured for a command:
+
+```bash
+TAIPAN_TELEMETRY_WAIT_MINUTES=30 \
+  bash scripts/run-vwan-lifecycle.sh \
+  --mode poc --execute --approved-cost-cap-eur 10
+```
+
+Valid values are whole minutes from 1 to 90. A shorter window may end before
+logging is ready. The same setting applies to the retest script.
+
+Azure charges continue while waiting. Neither this timeout nor the cost
+approval argument enforces a spending cap.
 
 The messages about expected blocked connectivity are preliminary traffic
 results. Final acceptance additionally requires the matching firewall Deny logs.
@@ -302,9 +330,32 @@ the lifecycle is running.
 | HTTPS www.microsoft.com:443 | Request fails; firewall Deny confirmed |
 | Network-rule telemetry | Exact source/destination/port/protocol/action pairs |
 | Application-rule telemetry | Exact source/FQDN/port/action pairs |
+| Workbook configuration and POC queries | Expected deployed definition and all required recent decisions |
 
 The telemetry queries are restricted to the test start time and discovered
 probe IP addresses.
+
+Before writing the acceptance PASS report, the script fetches the deployed
+workbook and verifies its definition and source workspace against the expected
+configuration. It runs the deployed POC private and Internet table queries
+against the test workspace and requires all expected decisions.
+
+These workbook evidence queries additionally require events within the last
+hour. A long wait can make earlier evidence too old; in that case, use a retest
+to generate fresh evidence rather than treating older rows as a new PASS.
+
+Saved workbook evidence includes:
+- workbook-deployed.json and its stderr file.
+- workbook-network.kql and workbook-application.kql.
+- Query result JSON and stderr for both tables.
+- WORKBOOK-VALIDATION.md after successful validation.
+
+These checks verify configuration and backend query results. They do not
+verify browser rendering or another viewer's portal permissions. Visually
+inspect both POC tables before choosing Keep or Destroy.
+
+A timeout or validation failure remains FAIL. The lifecycle still offers
+Keep for investigation or Destroy to remove billable resources.
 
 Successful Terraform deployment alone is not acceptance.
 A visible workbook alone is not acceptance.
@@ -521,9 +572,24 @@ context deadline exceeded error is retried, with a 30-second wait.
 Access/authentication errors, state-lock errors, cancellation, and other
 unrecognized errors stop cleanup without an automatic retry.
 
-Destroy later remains interactive: review each displayed plan and type yes
-when prompted, including on a retry. Destroy now uses the deletion choice
+Destroy later is interactive by default: review each displayed plan and type
+yes when prompted, including on a retry. Destroy now uses the deletion choice
 already made in the lifecycle prompt.
+
+For explicitly approved cleanup without confirmation prompts:
+
+```bash
+bash scripts/destroy-vwan-poc.sh \
+  /absolute/path/to/artifacts/lifecycle-RUN_ID --yes
+```
+
+The --yes option retains repository, subscription, backend, and input checks.
+It does not bypass cleanup errors or allow core destruction after harness
+cleanup fails.
+
+Keep the terminal session open until completion. No keyboard input is needed
+with --yes, but this is not scheduled background cleanup and it does not
+guarantee survival of a terminal disconnection.
 
 Each attempt is recorded in a separate cleanup directory under the run's
 evidence directory. A successful destroy must also leave an empty Terraform
@@ -720,7 +786,31 @@ nine simulated tests: immediate success, timeout recovery, retry exhaustion,
 access error, unknown error, cancellation, interruption, state-read failure,
 and non-empty state. No Azure calls were made by these simulated tests.
 
-Pending: live full-lifecycle verification using the new shared cleanup helper.
+A later fresh run, lifecycle-20261006T134452Z, passed all four traffic
+checks but did not confirm network telemetry within the original 20 attempts.
+Its original acceptance result remains FAIL. Fresh firewall events became
+visible later. The precise cause of the initial missing evidence is unconfirmed.
+
+The verifier was enhanced with a shared configurable telemetry polling
+deadline and deployed-workbook validation. Bash syntax and six timeout
+configuration checks passed. Nine mocked workbook checks passed, covering
+success, missing network/application evidence, incorrect workspace/workbook
+identity, changed definition, API failure, malformed rows, and incorrect GUID.
+
+The enhanced retained-POC retest, retest-20261006T153547Z, passed all traffic
+and telemetry checks. Network telemetry passed at query 1; application
+telemetry passed at query 4. Both deployed workbook POC queries and the
+configuration check passed. The script completed early rather than waiting
+the full 90 minutes.
+
+The explicit --yes later-destroy workflow completed successfully.
+The cleanup helper confirmed empty Terraform states, and Azure inventory
+confirmed both POC resource groups were absent. Evidence was retained.
+
+Pending:
+- Verify a fresh full lifecycle with the shared telemetry deadline and workbook checks.
+- Complete and validate fresh-machine setup instructions.
+- Review documentation and branding before release.
 
 This guide describes an interactive Linux workflow with workbook access from
 a Mac browser. AWS/GCP deployments, production execution, and custom AI agents

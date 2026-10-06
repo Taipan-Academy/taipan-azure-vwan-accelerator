@@ -2,6 +2,14 @@
 
 set -euo pipefail
 
+# TAIPAN_TELEMETRY_DEADLINE_V1
+telemetry_wait_minutes="${TAIPAN_TELEMETRY_WAIT_MINUTES:-90}"
+if [[ ! "$telemetry_wait_minutes" =~ ^[1-9][0-9]?$ ]] || (( telemetry_wait_minutes > 90 )); then
+  echo "TAIPAN_TELEMETRY_WAIT_MINUTES must be an integer from 1 to 90." >&2
+  exit 64
+fi
+
+
 usage() {
   cat <<'USAGE'
 Usage:
@@ -163,7 +171,7 @@ refresh_test_traffic() {
       ;;
   esac
 
-  echo "[TELEMETRY] Refreshing $phase test traffic; query attempt $attempt/20."
+  echo "[TELEMETRY] Refreshing $phase test traffic; query attempt $attempt."
   if ! run_on_probe_a "$command" >"$result" 2>"$result.stderr"; then
     echo "Traffic refresh command failed. Evidence: $result" >&2
     return 1
@@ -189,13 +197,23 @@ query="$(sed \
 
 query="${query/TimeGenerated > ago(60m)/TimeGenerated >= datetime($test_start_utc)}"
 printf '%s\n' "$query" >"$evidence_directory/firewall-acceptance.kql"
+telemetry_started=$SECONDS
+telemetry_deadline=$((telemetry_started + telemetry_wait_minutes * 60))
+echo "[READINESS] Both telemetry stages share a ${telemetry_wait_minutes}-minute polling window."
+echo "[COST] Azure charges continue while waiting. Azure requests can extend elapsed time."
 firewall_logs_found=false
+last_refresh=$SECONDS
 
-for attempt in $(seq 1 20); do
-  # Four bounded refreshes, including when the log table is not ready.
-  case "$attempt" in
-    2|6|10|14) refresh_test_traffic network "$attempt" || exit 1 ;;
-  esac
+attempt=0
+while (( SECONDS < telemetry_deadline )); do
+  attempt=$((attempt + 1))
+  echo "[READINESS] Elapsed $((SECONDS - telemetry_started))s; polling time remaining $((telemetry_deadline - SECONDS))s."
+  # Refresh once at attempt 2, then no more often than every five minutes.
+  if (( attempt == 2 || SECONDS - last_refresh >= 300 )); then
+    refresh_test_traffic network "$attempt" || exit 1
+    last_refresh=$SECONDS
+  fi
+  (( SECONDS < telemetry_deadline )) || break
   firewall_log_result="$evidence_directory/firewall-log-query-attempt-${attempt}.json"
   if ! az monitor log-analytics query \
     --workspace "$workspace_id" \
@@ -212,7 +230,7 @@ for attempt in $(seq 1 20); do
     exit 1
   fi
 
-  echo "[TELEMETRY] Network attempt $attempt/20"
+  echo "[TELEMETRY] Network query attempt $attempt"
   if python3 "$script_directory/check-firewall-telemetry.py" \
     "$firewall_log_result" network "$probe_a_ip" "$probe_b_ip"; then
     firewall_logs_found=true
@@ -236,12 +254,18 @@ application_query="$(sed -e "s/__PROBE_A_IP__/${probe_a_ip}/g" "$application_que
 application_query="${application_query/TimeGenerated > ago(60m)/TimeGenerated >= datetime($test_start_utc)}"
 printf '%s\n' "$application_query" >"$evidence_directory/firewall-internet-egress.kql"
 application_logs_found=false
+last_refresh=$SECONDS
 
-for attempt in $(seq 1 20); do
-  # Four bounded refreshes, including when the log table is not ready.
-  case "$attempt" in
-    2|6|10|14) refresh_test_traffic application "$attempt" || exit 1 ;;
-  esac
+attempt=0
+while (( SECONDS < telemetry_deadline )); do
+  attempt=$((attempt + 1))
+  echo "[READINESS] Elapsed $((SECONDS - telemetry_started))s; polling time remaining $((telemetry_deadline - SECONDS))s."
+  # Refresh once at attempt 2, then no more often than every five minutes.
+  if (( attempt == 2 || SECONDS - last_refresh >= 300 )); then
+    refresh_test_traffic application "$attempt" || exit 1
+    last_refresh=$SECONDS
+  fi
+  (( SECONDS < telemetry_deadline )) || break
   application_log_result="$evidence_directory/firewall-application-log-query-attempt-${attempt}.json"
   if ! az monitor log-analytics query \
     --workspace "$workspace_id" \
@@ -258,7 +282,7 @@ for attempt in $(seq 1 20); do
     exit 1
   fi
 
-  echo "[TELEMETRY] Application attempt $attempt/20"
+  echo "[TELEMETRY] Application query attempt $attempt"
   if python3 "$script_directory/check-firewall-telemetry.py" \
     "$application_log_result" application "$probe_a_ip" "$probe_b_ip"; then
     application_logs_found=true
@@ -278,6 +302,11 @@ if [[ "$application_logs_found" != true ]]; then
   exit 1
 fi
 
+# TAIPAN_WORKBOOK_VALIDATION_V1
+echo "[WORKBOOK] Validating deployed configuration and POC table evidence..."
+python3 "$script_directory/check-poc-workbook.py" \
+  "$evidence_directory" "$workspace_id" "$probe_a_ip" "$probe_b_ip" "$test_start_utc"
+
 cat >"$evidence_directory/REPORT.md" <<REPORT
 # Azure vWAN acceptance-test report
 
@@ -291,6 +320,7 @@ cat >"$evidence_directory/REPORT.md" <<REPORT
 | Internet egress: www.example.com HTTPS | PASS (allowed) | \`internet-allowed.json\` |
 | Internet egress: www.microsoft.com HTTPS | PASS (blocked) | \`internet-denied.json\` |
 | Azure Firewall network-rule telemetry | PASS | \`firewall-log-query-attempt-*.json\` |
+| Workbook configuration and POC queries | PASS | WORKBOOK-VALIDATION.md |
 | Azure Firewall application-rule telemetry | PASS | \`firewall-application-log-query-attempt-*.json\` |
 
 **Test resource group:** \`${test_resource_group}\`

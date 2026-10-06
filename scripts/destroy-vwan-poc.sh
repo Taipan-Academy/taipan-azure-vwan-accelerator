@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# != 1 ]]; then
-  echo "Usage: destroy-vwan-poc.sh <execution-evidence-directory>" >&2
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Usage: destroy-vwan-poc.sh <execution-evidence-directory> [--yes]" >&2
   exit 64
+fi
+
+# TAIPAN_NONINTERACTIVE_DESTROY_V1
+destroy_args=()
+if [[ $# == 2 ]]; then
+  if [[ "$2" != "--yes" ]]; then
+    echo "Unknown option: $2" >&2
+    exit 64
+  fi
+  destroy_args=(-auto-approve)
+  echo "[DESTROY] Explicit --yes selected: cleanup will run without prompts."
 fi
 
 run="$(cd "$1" && pwd)"
@@ -35,8 +46,8 @@ echo "Order: test harness first, then disposable vWAN core."
 echo "Terraform will display the resources in each destroy plan."
 
 # Interactive destroy: review Terraform's targets and type yes.
-terraform_destroy_with_retry "$root/infra/terraform/test-harness" "$run" harness
-terraform_destroy_with_retry "$root/infra/terraform" "$run" core
+terraform_destroy_with_retry "$root/infra/terraform/test-harness" "$run" harness "${destroy_args[@]}"
+terraform_destroy_with_retry "$root/infra/terraform" "$run" core "${destroy_args[@]}"
 
 for directory in \
   "$root/infra/terraform/test-harness" \
