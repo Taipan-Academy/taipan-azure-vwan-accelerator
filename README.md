@@ -19,9 +19,25 @@ Follow the **[Start-to-Finish student guide](docs/POC-START-TO-FINISH.md)** for 
 3. Review the plan before creating billable Azure resources.
 4. Deploy, verify evidence, inspect the workbook, then choose Destroy or Keep.
 
-The quick-start currently assumes a prepared Linux environment and configured
-Terraform backends. Fresh-machine setup instructions remain to be completed
-and validated.
+The quick-start assumes a prepared Linux environment and configured
+Terraform backends. Fresh-machine setup instructions are documented;
+their complete clean-machine walkthrough remains unverified.
+
+After one-time setup, use the guided launcher:
+
+```bash
+bash scripts/start-poc.sh --prepare-only
+```
+
+To review and approve deployment through the same launcher:
+
+```bash
+bash scripts/start-poc.sh
+```
+
+The launcher requires installed tools and existing state storage.
+Its preparation path passed with existing initialized backends;
+its guided deployment path remains pending live verification.
 
 ## What is available now
 
@@ -29,6 +45,7 @@ and validated.
 | --- | --- |
 | Single secured vWAN hub, Azure Firewall Standard, policy, and routing intent | Fresh live POC verified |
 | Customer-owned Azure Storage Terraform state bootstrap | Bicep compiled and validated |
+| Guided launcher for existing state storage | Preparation path verified; guided deployment validation pending |
 | Temporary two-spoke test harness and private probe VMs | Live POC verified |
 | Private TCP allow/deny and controlled HTTPS egress tests | Live acceptance verified |
 | Exact network and application firewall decision checks | Live acceptance verified |

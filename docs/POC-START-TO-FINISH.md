@@ -6,8 +6,45 @@ This is the main student and video guide. Follow the steps in order.
 It includes the commands for tool installation, Azure preparation,
 Terraform initialization, deployment, verification, and cleanup.
 
-This is the current manual preparation workflow, not a one-touch launcher.
-The proposed `start-poc.sh` launcher has not been implemented.
+This guide covers one-time preparation and the complete POC workflow.
+Once tools and state storage are ready, the guided launcher simplifies
+account selection, backend initialization, input checks, planning, and execution.
+
+## Guided route after one-time preparation
+
+Run from the repository directory with no existing POC running.
+
+First, prepare and review the plan:
+
+```bash
+bash scripts/start-poc.sh --prepare-only
+```
+
+This checks tools, guides Azure account and subscription selection, reuses
+existing state storage, initializes separate backends, requires empty POC
+states, checks matching inputs, and runs plan-only. It creates no Azure resources.
+
+When ready to deploy:
+
+```bash
+bash scripts/start-poc.sh
+```
+
+Review the account, subscription, backend locations, inputs, and plan.
+Type DEPLOY only when ready to create billable POC resources with the
+displayed EUR 10 allowance. That allowance does not enforce a spending cap.
+
+The existing lifecycle then deploys, tests traffic, verifies firewall logs
+and workbook query evidence, and offers Destroy or Keep. Inspect the workbook
+before choosing. After destruction, verify both POC resource groups are absent.
+
+The launcher does not install tools or create state storage.
+Complete the preparation steps below if those are not ready.
+For custom names or IP ranges, prepare matching core and harness inputs first.
+
+**Validation:** the launcher's preparation path passed against existing
+initialized backends on 2026-10-06. Its guided deployment path has not yet
+been verified live. The underlying full POC lifecycle has passed separately.
 
 ## Before following this guide
 
