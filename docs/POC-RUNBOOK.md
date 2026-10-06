@@ -277,8 +277,14 @@ Acceptance progress includes:
 
 Individual Azure Run Command requests can take time to return.
 
-Logging retries are automatic because telemetry can arrive after the traffic
-tests finish. Each telemetry stage allows up to 20 query attempts.
+Each telemetry stage allows up to 20 query attempts, with 30-second waits
+between unsuccessful attempts. Azure calls add elapsed time.
+
+At attempts 2, 6, 10, and 14, an unresolved stage generates fresh traffic
+for its two checks: at most four refreshes per stage. Refresh results are
+saved separately as traffic-refresh files. Command failure, missing expected
+results, or unexpected connectivity stops the test. Acceptance still requires
+the exact firewall Allow/Deny decisions since the current test started.
 
 The messages about expected blocked connectivity are preliminary traffic
 results. Final acceptance additionally requires the matching firewall Deny logs.
@@ -329,6 +335,18 @@ Charges continue while the resources are running.
 4. Select the test workspace if prompted.
 5. Set the time range to Last hour and refresh.
 6. Find POC Traffic Evidence near the top.
+
+If the URL is lost, open Resource groups, select rg-taipan-vwan-weu-example,
+filter by resource type Workbook, and open
+Taipan vWAN POC - Firewall Observability.
+
+Retrieve the current URL from the Linux repository with:
+
+    terraform -chdir=infra/terraform/test-harness output -raw observability_url
+
+The workbook lives in the core resource group alongside the hub and firewall.
+Logs remain in the test workspace. The harness Terraform state manages the
+workbook, including its destruction.
 
 ### POC evidence tables
 
@@ -503,8 +521,9 @@ generated harness input file and dedicated key, and writes CLEANUP-RESULT.md.
 
 Evidence remains on your Linux VM.
 
-The workspace and workbook are deleted with the harness.
-The observability URL will no longer provide a live POC dashboard.
+Harness destruction removes the test workspace and the workbook located in
+the core resource group. Core destruction follows only after harness
+destruction succeeds. The observability URL then stops providing a live dashboard.
 
 ## Verify cleanup in Azure
 
@@ -596,8 +615,13 @@ This fixes the observed AzureRM lowercase validation error.
 
 ### Logs have not arrived
 
-Allow automatic telemetry retries to finish.
-Inspect saved JSON and stderr files if they fail.
+Allow automatic queries and bounded traffic refreshes to finish.
+Initial traffic may precede logging readiness. The cause of the observed
+initial missing events has not been established.
+
+Inspect query, traffic-refresh, and stderr evidence if acceptance fails.
+Retesting a retained POC generates fresh traffic and a separate report.
+A successful retest does not overwrite the original failed result.
 
 A query failure is different from a successful query missing the expected rows.
 The verifier rejects malformed results and unexpected query errors.
@@ -656,9 +680,20 @@ On 2026-10-05, the following were verified:
 - Both POC resource groups were confirmed absent.
 - Bash syntax, Terraform validation, and Git whitespace checks passed.
 
-The latest progress messages and format-before-checksum change passed local
-checks. A fresh complete execution reaching the final Keep/Destroy prompt still
-requires live verification.
+On 2026-10-06, fresh deployment reached the Keep/Destroy prompt. Four traffic
+checks passed, but network telemetry was empty through 20 attempts. Initial
+acceptance remained FAIL. The POC was retained and a separate retest passed.
+
+The traffic-refresh change passed five local helper checks and a live retest.
+Application refresh ran at attempt 2; exact decisions were confirmed at
+attempt 4. The workbook was moved into the core resource group and visually
+verified. Backend and input checksum checks passed during retest.
+
+Cleanup with the relocated workbook completed on 2026-10-06. Azure inventory
+confirmed both POC resource groups were absent; local evidence was retained.
+
+Pending: a fresh full lifecycle using both changes, with successful
+acceptance and final cleanup verification.
 
 This guide describes an interactive Linux workflow with workbook access from
 a Mac browser. AWS/GCP deployments, production execution, and custom AI agents

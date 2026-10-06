@@ -12,7 +12,7 @@ locals {
 
 resource "azurerm_application_insights_workbook" "poc_firewall" {
   name                = uuidv5("url", "${azurerm_resource_group.test.id}/taipan-firewall-workbook")
-  resource_group_name = azurerm_resource_group.test.name
+  resource_group_name = data.azurerm_firewall.core.resource_group_name
   location            = azurerm_resource_group.test.location
   display_name        = "Taipan vWAN POC - Firewall Observability"
   category            = "workbook"

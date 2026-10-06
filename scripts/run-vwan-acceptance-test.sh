@@ -139,6 +139,44 @@ fi
 echo "[PASS 4/4] Blocked HTTPS request returned expected failure."
 echo "[TELEMETRY] Confirming exact firewall Allow/Deny decisions for this test run."
 echo "[TELEMETRY] Log ingestion may take several minutes; retries are automatic."
+
+# TAIPAN_TELEMETRY_REFRESH_V1
+refresh_test_traffic() {
+  local phase="$1" attempt="$2"
+  local command expected_first expected_second
+  local result="$evidence_directory/traffic-refresh-${phase}-attempt-${attempt}.json"
+
+  case "$phase" in
+    network)
+      command="$(printf 'set -e\n%s\n%s\n' "$allowed_command" "$denied_command")"
+      expected_first="taipan-vwan-acceptance-test"
+      expected_second="EXPECTED_DENY"
+      ;;
+    application)
+      command="$(printf 'set -e\n%s\n%s\n' "$internet_allowed_command" "$internet_denied_command")"
+      expected_first="EXPECTED_INTERNET_ALLOW"
+      expected_second="EXPECTED_INTERNET_DENY"
+      ;;
+    *)
+      echo "Unknown traffic refresh phase: $phase" >&2
+      return 2
+      ;;
+  esac
+
+  echo "[TELEMETRY] Refreshing $phase test traffic; query attempt $attempt/20."
+  if ! run_on_probe_a "$command" >"$result" 2>"$result.stderr"; then
+    echo "Traffic refresh command failed. Evidence: $result" >&2
+    return 1
+  fi
+
+  if ! grep -q "$expected_first" "$result" ||
+     ! grep -q "$expected_second" "$result" ||
+     grep -Eq 'UNEXPECTED_CONNECTIVITY|UNEXPECTED_INTERNET_CONNECTIVITY' "$result"; then
+    echo "Traffic refresh did not preserve the expected outcomes. Evidence: $result" >&2
+    return 1
+  fi
+}
+
 if [[ ! -f "$query_template" ]]; then
   echo "KQL template is missing: $query_template" >&2
   exit 1
@@ -154,6 +192,10 @@ printf '%s\n' "$query" >"$evidence_directory/firewall-acceptance.kql"
 firewall_logs_found=false
 
 for attempt in $(seq 1 20); do
+  # Four bounded refreshes, including when the log table is not ready.
+  case "$attempt" in
+    2|6|10|14) refresh_test_traffic network "$attempt" || exit 1 ;;
+  esac
   firewall_log_result="$evidence_directory/firewall-log-query-attempt-${attempt}.json"
   if ! az monitor log-analytics query \
     --workspace "$workspace_id" \
@@ -196,6 +238,10 @@ printf '%s\n' "$application_query" >"$evidence_directory/firewall-internet-egres
 application_logs_found=false
 
 for attempt in $(seq 1 20); do
+  # Four bounded refreshes, including when the log table is not ready.
+  case "$attempt" in
+    2|6|10|14) refresh_test_traffic application "$attempt" || exit 1 ;;
+  esac
   application_log_result="$evidence_directory/firewall-application-log-query-attempt-${attempt}.json"
   if ! az monitor log-analytics query \
     --workspace "$workspace_id" \
