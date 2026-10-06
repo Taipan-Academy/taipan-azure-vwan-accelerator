@@ -409,7 +409,59 @@ Resolve it before initialization; do not repeatedly deploy the POC.
 
 If you open a new terminal, re-enter the subscription and backend variables.
 
-### Step 15 — Initialize separate Terraform states
+### Step 15 — Configure state storage using the launcher
+
+Complete Steps 12–14 first: create your Azure state storage and verify access.
+Use this step only when no existing POC is running.
+
+**Recommended student route:** run the guided launcher from the repository:
+
+```bash
+bash scripts/start-poc.sh --prepare-only
+```
+
+Confirm your Azure account and subscription.
+
+On a new checkout, enter the storage names from the Bicep deployment outputs:
+
+| Prompt | What to enter |
+| --- | --- |
+| State resource group | Your state-storage resource-group name |
+| State storage account | Your storage-account name |
+| State container [tfstate] | Press Enter if your container is named tfstate |
+| Dedicated state key prefix [poc/weu] | Press Enter for an isolated default lab, or use a distinct prefix for another environment |
+
+The launcher displays two separate state keys:
+
+```text
+poc/weu/vwan-core.tfstate
+poc/weu/vwan-acceptance-test.tfstate
+```
+
+Review the storage destination and keys, then enter y to confirm.
+Do not use another student's state keys.
+
+If both backends are already initialized, the launcher instead displays their
+existing storage configuration and asks whether to reuse it.
+
+The launcher initializes both backends, requires empty POC states, prepares
+default core inputs when absent, checks matching core/harness names and region,
+and runs the plan-only workflow.
+
+Expected final message:
+
+```text
+[PREPARED] Setup and plan completed. No vWAN POC deployed.
+```
+
+This command creates no Azure resources. State storage from Step 13 remains.
+Stop and investigate if any check fails.
+
+**Do not also run the manual initialization commands below.**
+They are an alternative reference, not an additional student step.
+
+<details>
+<summary>Alternative: manual Terraform initialization</summary>
 
 These commands are for a new checkout with no existing deployment.
 Do not point them at another user's live state.
@@ -442,6 +494,8 @@ Do not run concurrent executions against the same core or harness state.
 For an existing backend, follow reviewed migration/reconfiguration guidance
 rather than blindly overwriting its settings.
 
+</details>
+
 ### Step 16 — Prepare matching POC settings
 
 ```bash
@@ -468,6 +522,11 @@ Do not commit local parameters, inputs, state, plans, or keys.
 ## Part 3 — Run, inspect, and clean up
 
 ### Step 17 — Plan — no resources created
+
+If you completed the guided Step 15, a plan has already been generated.
+Review that plan. Run the command below only if you changed inputs in Step 16
+or followed the manual initialization alternative.
+
 
 ```bash
 bash scripts/run-vwan-lifecycle.sh --mode poc --plan-only
