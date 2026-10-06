@@ -11,6 +11,8 @@ It is not a production-ready deployment.
 
 ## Start here
 
+Follow the **[Start-to-Finish student guide](docs/POC-START-TO-FINISH.md)** for all steps in one file.
+
 1. Follow the [POC quick-start](docs/POC-QUICKSTART.md).
 2. Use the [detailed runbook](docs/POC-RUNBOOK.md) for prerequisites,
    configuration, costs, troubleshooting, and recovery.
